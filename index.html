@@ -283,10 +283,8 @@ async function sendNotification() {
   try {
     await fetch(`https://ntfy.sh/${user.channel}`, {
       method: 'POST',
+      mode: 'no-cors',
       headers: {
-        'Title': 'SOALA南ヶ丘校からのお知らせ',
-        'Priority': 'high',
-        'Tags': 'car',
         'Content-Type': 'text/plain; charset=utf-8'
       },
       body: time.msg
