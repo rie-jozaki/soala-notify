@@ -190,7 +190,7 @@ const TIMES = [
 ];
 
 const DEFAULT_USERS = [
-  { name: '小森ゆうき くん お母さま', channel: 'soala-minamioka-001' }
+  { name: '小森ゆうき くん お母さま', channel: 'soala-minamigaoka-001' }
 ];
 
 let users = JSON.parse(localStorage.getItem('soala_users') || 'null') || DEFAULT_USERS;
@@ -280,8 +280,9 @@ async function sendNotification() {
   btn.disabled = true;
   btn.textContent = '送信中...';
   try {
-    const resp = await fetch(`https://ntfy.sh/${user.channel}`, {
+    await fetch(`https://ntfy.sh/${user.channel}`, {
       method: 'POST',
+      mode: 'no-cors',
       headers: {
         'Title': 'SOALA南ヶ丘校からのお知らせ',
         'Priority': 'high',
@@ -290,15 +291,9 @@ async function sendNotification() {
       },
       body: time.msg
     });
-    if (resp.ok) {
-      document.getElementById('success-detail').textContent = user.name + ' の保護者様へ送信しました';
-      document.getElementById('success-msg-text').textContent = time.msg;
-      showScreen('success-screen');
-    } else {
-      showToast('送信に失敗しました。通信を確認してください。');
-      btn.disabled = false;
-      btn.textContent = '通知を送る';
-    }
+    document.getElementById('success-detail').textContent = user.name + ' の保護者様へ送信しました';
+    document.getElementById('success-msg-text').textContent = time.msg;
+    showScreen('success-screen');
   } catch(e) {
     showToast('通信エラーです。電波を確認してください。');
     btn.disabled = false;
