@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="到着通知">
 <meta name="theme-color" content="#ffffff">
 <title>到着通知 | SOALA南ヶ丘校</title>
+
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <style>
@@ -282,7 +283,6 @@ async function sendNotification() {
   try {
     await fetch(`https://ntfy.sh/${user.channel}`, {
       method: 'POST',
-      mode: 'no-cors',
       headers: {
         'Title': 'SOALA南ヶ丘校からのお知らせ',
         'Priority': 'high',
