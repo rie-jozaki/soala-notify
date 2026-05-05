@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="到着通知">
+<meta name="theme-color" content="#ffffff">
+<title>到着通知 | SOALA南ヶ丘校</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #f7f7f5; min-height: 100vh; }
+  .screen { display: none; min-height: 100vh; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  .header { background: #fff; padding: 14px 20px 12px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 12px; }
+  .header-logo { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; flex-shrink: 0; }
+  .header-logo img { width: 100%; height: 100%; object-fit: cover; }
+  .header-title { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+  .header-sub { font-size: 11px; color: #999; margin-top: 1px; }
+
+  .main-content { flex: 1; padding: 20px 16px; overflow-y: auto; }
+  .section-label { font-size: 11px; font-weight: 700; color: #999; letter-spacing: 0.08em; margin-bottom: 10px; }
+
+  .user-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; }
+  .user-card { background: #fff; border: 1.5px solid #e5e5e5; border-radius: 14px; padding: 14px 16px; display: flex; align-items: center; gap: 13px; cursor: pointer; transition: all 0.12s; }
+  .user-card:active { transform: scale(0.98); }
+  .user-card.selected { border-color: #4CAF50; background: #f0faf0; }
+  .user-avatar { width: 42px; height: 42px; border-radius: 50%; background: #4CAF50; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .user-info { flex: 1; min-width: 0; }
+  .user-name { font-size: 15px; font-weight: 600; color: #1a1a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-channel { font-size: 11px; color: #bbb; margin-top: 2px; }
+  .user-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #ddd; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.12s; }
+  .user-card.selected .user-check { background: #4CAF50; border-color: #4CAF50; color: #fff; font-size: 13px; }
+  .user-check-inner { display: none; }
+  .user-card.selected .user-check-inner { display: block; }
+
+  .time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+  .time-card { background: #fff; border: 1.5px solid #e5e5e5; border-radius: 14px; padding: 16px 10px; text-align: center; cursor: pointer; transition: all 0.12s; }
+  .time-card:active { transform: scale(0.97); }
+  .time-card.selected { border-color: #FF8F00; background: #fff8f0; }
+  .time-emoji { font-size: 22px; margin-bottom: 6px; }
+  .time-main { font-size: 15px; font-weight: 700; color: #1a1a1a; }
+  .time-sub { font-size: 11px; color: #bbb; margin-top: 3px; }
+
+  .preview-box { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; display: none; }
+  .preview-box.visible { display: block; }
+  .preview-label { font-size: 10px; font-weight: 700; color: #bbb; letter-spacing: 0.06em; margin-bottom: 5px; }
+  .preview-text { font-size: 14px; color: #333; line-height: 1.6; }
+
+  .send-btn { width: 100%; padding: 17px; background: #4CAF50; border: none; border-radius: 16px; color: #fff; font-size: 17px; font-weight: 700; cursor: pointer; transition: all 0.12s; font-family: inherit; letter-spacing: 0.02em; margin-bottom: 20px; }
+  .send-btn:active { transform: scale(0.98); background: #388E3C; }
+  .send-btn:disabled { background: #e0e0e0; color: #bbb; cursor: not-allowed; transform: none; }
+
+  #success-screen { justify-content: center; align-items: center; padding: 40px 24px; text-align: center; background: #f7f7f5; }
+  .success-circle { width: 80px; height: 80px; background: #E8F5E9; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+  .success-circle svg { width: 42px; height: 42px; }
+  .success-title { font-size: 20px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px; }
+  .success-detail { font-size: 14px; color: #888; margin-bottom: 4px; }
+  .success-msg-box { background: #fff; border-radius: 12px; padding: 14px 18px; margin: 16px 0 28px; border: 1px solid #eee; width: 100%; text-align: left; }
+  .success-msg-label { font-size: 10px; color: #bbb; font-weight: 700; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .success-msg-text { font-size: 15px; color: #333; line-height: 1.7; }
+  .back-btn { background: #fff; border: 1.5px solid #ddd; border-radius: 14px; padding: 14px 44px; font-size: 15px; font-weight: 600; color: #555; cursor: pointer; font-family: inherit; }
+  .back-btn:active { background: #f5f5f5; }
+
+  #admin-screen { background: #f7f7f5; }
+  .admin-header { background: #fff; padding: 14px 20px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; }
+  .admin-header-title { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+  .admin-close { font-size: 15px; color: #4CAF50; font-weight: 700; cursor: pointer; padding: 4px 8px; }
+  .admin-content { padding: 20px 16px; overflow-y: auto; }
+  .admin-section { margin-bottom: 28px; }
+  .admin-section-title { font-size: 12px; font-weight: 700; color: #999; letter-spacing: 0.06em; margin-bottom: 10px; }
+  .admin-user-item { background: #fff; border-radius: 12px; border: 1px solid #eee; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+  .admin-user-name { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+  .admin-user-ch { font-size: 11px; color: #bbb; margin-top: 2px; }
+  .admin-del { color: #f44336; font-size: 13px; font-weight: 700; cursor: pointer; padding: 6px 10px; }
+  .add-form { background: #fff; border-radius: 14px; border: 1px solid #eee; padding: 16px; }
+  .add-form input { width: 100%; border: 1.5px solid #e0e0e0; border-radius: 10px; padding: 12px 14px; font-size: 14px; margin-bottom: 10px; outline: none; font-family: inherit; color: #1a1a1a; background: #fafafa; }
+  .add-form input:focus { border-color: #4CAF50; background: #fff; }
+  .add-form-btn { width: 100%; padding: 13px; background: #4CAF50; border: none; border-radius: 12px; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .add-form-btn:active { background: #388E3C; }
+
+  .fab { position: fixed; bottom: 24px; right: 20px; width: 46px; height: 46px; background: #fff; border-radius: 50%; border: 1.5px solid #e0e0e0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+  .fab:active { background: #f5f5f5; }
+
+  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: #323232; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; z-index: 999; }
+  .toast.show { opacity: 1; }
+
+  .empty-state { text-align: center; padding: 32px 20px; color: #bbb; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<!-- メイン画面 -->
+<div id="main-screen" class="screen active">
+  <div class="header">
+    <div class="header-logo"><img src="icon.png" alt="SOALA"></div>
+    <div>
+      <div class="header-title">到着通知</div>
+      <div class="header-sub">SOALA 南ヶ丘校</div>
+    </div>
+  </div>
+  <div class="main-content">
+    <div class="section-label">利用者を選択</div>
+    <div class="user-list" id="user-list"></div>
+
+    <div class="section-label">到着予定</div>
+    <div class="time-grid">
+      <div class="time-card" onclick="selectTime(0)">
+        <div class="time-emoji">🚗</div>
+        <div class="time-main">まもなく</div>
+        <div class="time-sub">到着します</div>
+      </div>
+      <div class="time-card" onclick="selectTime(1)">
+        <div class="time-emoji">⏱</div>
+        <div class="time-main">約5分後</div>
+        <div class="time-sub">に到着予定</div>
+      </div>
+      <div class="time-card" onclick="selectTime(2)">
+        <div class="time-emoji">⏱</div>
+        <div class="time-main">約10分後</div>
+        <div class="time-sub">に到着予定</div>
+      </div>
+      <div class="time-card" onclick="selectTime(3)">
+        <div class="time-emoji">⏱</div>
+        <div class="time-main">約15分後</div>
+        <div class="time-sub">に到着予定</div>
+      </div>
+    </div>
+
+    <div class="preview-box" id="preview-box">
+      <div class="preview-label">送信される通知メッセージ</div>
+      <div class="preview-text" id="preview-text"></div>
+    </div>
+    <button class="send-btn" id="send-btn" disabled onclick="sendNotification()">通知を送る</button>
+  </div>
+  <button class="fab" onclick="showAdmin()" title="管理画面">⚙️</button>
+</div>
+
+<!-- 送信完了画面 -->
+<div id="success-screen" class="screen">
+  <div class="success-circle">
+    <svg viewBox="0 0 42 42" fill="none">
+      <circle cx="21" cy="21" r="19" stroke="#4CAF50" stroke-width="2.5"/>
+      <path d="M12 21l7 7 13-13" stroke="#4CAF50" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+  <div class="success-title">通知を送りました！</div>
+  <div class="success-detail" id="success-detail"></div>
+  <div class="success-msg-box">
+    <div class="success-msg-label">送信したメッセージ</div>
+    <div class="success-msg-text" id="success-msg-text"></div>
+  </div>
+  <button class="back-btn" onclick="goBack()">戻る</button>
+</div>
+
+<!-- 管理画面 -->
+<div id="admin-screen" class="screen">
+  <div class="admin-header">
+    <div class="admin-header-title">⚙️ 利用者管理</div>
+    <div class="admin-close" onclick="closeAdmin()">完了</div>
+  </div>
+  <div class="admin-content">
+    <div class="admin-section">
+      <div class="admin-section-title">登録中の利用者</div>
+      <div id="admin-user-list"></div>
+    </div>
+    <div class="admin-section">
+      <div class="admin-section-title">新しい利用者を追加</div>
+      <div class="add-form">
+        <input type="text" id="new-name" placeholder="お名前（例：小森ゆうき くん お母さま）">
+        <input type="text" id="new-channel" placeholder="ntfyチャンネル名（例：soala-minamioka-002）">
+        <button class="add-form-btn" onclick="addUser()">追加する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TIMES = [
+  { label: 'まもなく', msg: '🚗 まもなく到着します。お迎えをお願いします 🙏' },
+  { label: '約5分後', msg: '🚗 約5分後に到着します。お迎えをお願いします 🙏' },
+  { label: '約10分後', msg: '🚗 約10分後に到着します。お迎えをお願いします 🙏' },
+  { label: '約15分後', msg: '🚗 約15分後に到着します。お迎えをお願いします 🙏' },
+];
+
+const DEFAULT_USERS = [
+  { name: '小森ゆうき くん お母さま', channel: 'soala-minamioka-001' }
+];
+
+let users = JSON.parse(localStorage.getItem('soala_users') || 'null') || DEFAULT_USERS;
+let selectedUser = null;
+let selectedTime = null;
+
+function saveUsers() {
+  localStorage.setItem('soala_users', JSON.stringify(users));
+}
+
+function renderUserList() {
+  const list = document.getElementById('user-list');
+  if (users.length === 0) {
+    list.innerHTML = '<div class="empty-state">利用者が登録されていません<br>⚙️ から追加してください</div>';
+    return;
+  }
+  list.innerHTML = '';
+  users.forEach((u, i) => {
+    const card = document.createElement('div');
+    card.className = 'user-card' + (selectedUser === i ? ' selected' : '');
+    card.innerHTML = `
+      <div class="user-avatar">${u.name.charAt(0)}</div>
+      <div class="user-info">
+        <div class="user-name">${u.name}</div>
+        <div class="user-channel">ch: ${u.channel}</div>
+      </div>
+      <div class="user-check"><span class="user-check-inner">✓</span></div>
+    `;
+    card.onclick = () => selectUser(i);
+    list.appendChild(card);
+  });
+}
+
+function renderAdminList() {
+  const list = document.getElementById('admin-user-list');
+  if (users.length === 0) {
+    list.innerHTML = '<div class="empty-state">登録中の利用者はいません</div>';
+    return;
+  }
+  list.innerHTML = '';
+  users.forEach((u, i) => {
+    const item = document.createElement('div');
+    item.className = 'admin-user-item';
+    item.innerHTML = `
+      <div>
+        <div class="admin-user-name">${u.name}</div>
+        <div class="admin-user-ch">ch: ${u.channel}</div>
+      </div>
+      <div class="admin-del" onclick="deleteUser(${i})">削除</div>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function selectUser(idx) {
+  selectedUser = idx;
+  renderUserList();
+  updatePreview();
+}
+
+function selectTime(idx) {
+  selectedTime = idx;
+  document.querySelectorAll('.time-card').forEach((c, i) => {
+    c.classList.toggle('selected', i === idx);
+  });
+  updatePreview();
+}
+
+function updatePreview() {
+  const box = document.getElementById('preview-box');
+  const txt = document.getElementById('preview-text');
+  const btn = document.getElementById('send-btn');
+  if (selectedUser !== null && selectedTime !== null) {
+    box.classList.add('visible');
+    txt.textContent = TIMES[selectedTime].msg;
+    btn.disabled = false;
+  } else {
+    box.classList.remove('visible');
+    btn.disabled = true;
+  }
+}
+
+async function sendNotification() {
+  const user = users[selectedUser];
+  const time = TIMES[selectedTime];
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+  btn.textContent = '送信中...';
+  try {
+    const resp = await fetch(`https://ntfy.sh/${user.channel}`, {
+      method: 'POST',
+      headers: {
+        'Title': 'SOALA南ヶ丘校からのお知らせ',
+        'Priority': 'high',
+        'Tags': 'car',
+        'Content-Type': 'text/plain; charset=utf-8'
+      },
+      body: time.msg
+    });
+    if (resp.ok) {
+      document.getElementById('success-detail').textContent = user.name + ' の保護者様へ送信しました';
+      document.getElementById('success-msg-text').textContent = time.msg;
+      showScreen('success-screen');
+    } else {
+      showToast('送信に失敗しました。通信を確認してください。');
+      btn.disabled = false;
+      btn.textContent = '通知を送る';
+    }
+  } catch(e) {
+    showToast('通信エラーです。電波を確認してください。');
+    btn.disabled = false;
+    btn.textContent = '通知を送る';
+  }
+}
+
+function goBack() {
+  selectedUser = null;
+  selectedTime = null;
+  document.querySelectorAll('.time-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('send-btn').disabled = true;
+  document.getElementById('send-btn').textContent = '通知を送る';
+  updatePreview();
+  renderUserList();
+  showScreen('main-screen');
+}
+
+function showAdmin() {
+  renderAdminList();
+  showScreen('admin-screen');
+}
+
+function closeAdmin() {
+  renderUserList();
+  showScreen('main-screen');
+}
+
+function addUser() {
+  const name = document.getElementById('new-name').value.trim();
+  const channel = document.getElementById('new-channel').value.trim();
+  if (!name || !channel) { showToast('名前とチャンネル名を入力してください'); return; }
+  users.push({ name, channel });
+  saveUsers();
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-channel').value = '';
+  renderAdminList();
+  showToast('✓ 追加しました！');
+}
+
+function deleteUser(idx) {
+  if (!confirm(users[idx].name + ' を削除しますか？')) return;
+  users.splice(idx, 1);
+  if (selectedUser === idx) selectedUser = null;
+  else if (selectedUser > idx) selectedUser--;
+  saveUsers();
+  renderAdminList();
+  showToast('削除しました');
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+renderUserList();
+</script>
+</body>
+</html>
